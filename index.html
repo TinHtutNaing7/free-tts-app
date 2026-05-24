@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Myanmar Voiceover Studio</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,300&family=Noto+Sans+Myanmar:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --amber:     #F59E0B;
+      --amber-l:   #FCD34D;
+      --bg:        #060608;
+      --surf-1:    #0E0E12;
+      --surf-2:    #17171E;
+      --surf-3:    #21212B;
+      --border:    rgba(255,255,255,0.06);
+      --text:      #EEEEF0;
+      --muted:     rgba(255,255,255,0.35);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Noise overlay ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.045'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 9999; opacity: .55;
+    }
+
+    /* ── Scan line ── */
+    .scan { position: fixed; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent 0%, rgba(245,158,11,.6) 50%, transparent 100%);
+      animation: scan 6s linear infinite; pointer-events: none; z-index: 100; }
+    @keyframes scan { from { top: -2px; } to { top: 100vh; } }
+
+    /* ── Typography ── */
+    .display { font-family: 'Bebas Neue', sans-serif; letter-spacing: .12em; }
+    .myanmar { font-family: 'Noto Sans Myanmar', sans-serif; }
+
+    /* ── Amber gradient text ── */
+    .amber-text {
+      background: linear-gradient(135deg, #F59E0B 0%, #FCD34D 50%, #F59E0B 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+
+    /* ── Upload zone ── */
+    .upload-zone {
+      border: 1.5px dashed rgba(245,158,11,.22);
+      transition: all .3s ease; cursor: pointer; position: relative;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--amber);
+      background: rgba(245,158,11,.04);
+      box-shadow: 0 0 50px rgba(245,158,11,.08), inset 0 0 50px rgba(245,158,11,.04);
+    }
+    /* Corner accents */
+    .upload-zone::before, .upload-zone::after,
+    .upload-zone .corner-br, .upload-zone .corner-bl {
+      content: ''; position: absolute; width: 24px; height: 24px;
+      border-color: rgba(245,158,11,.5); border-style: solid;
+    }
+    .upload-zone::before  { top: 12px; left: 12px;  border-width: 2px 0 0 2px; }
+    .upload-zone::after   { top: 12px; right: 12px; border-width: 2px 2px 0 0; }
+    .upload-zone .corner-br { bottom: 12px; right: 12px; border-width: 0 2px 2px 0; }
+    .upload-zone .corner-bl { bottom: 12px; left: 12px;  border-width: 0 0 2px 2px; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surf-1);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+    }
+    .selectable {
+      transition: all .2s ease; cursor: pointer;
+      border: 1px solid var(--border);
+      border-radius: 14px; background: var(--surf-2);
+    }
+    .selectable:hover { border-color: rgba(245,158,11,.35); background: rgba(245,158,11,.05); }
+    .selectable.active {
+      border-color: var(--amber);
+      background: rgba(245,158,11,.08);
+      box-shadow: 0 0 0 1px rgba(245,158,11,.3), inset 0 0 20px rgba(245,158,11,.04);
+    }
+
+    /* ── Process button ── */
+    .process-btn {
+      background: linear-gradient(135deg, #92400E 0%, #D97706 40%, #F59E0B 70%, #FCD34D 100%);
+      color: #0A0400; font-weight: 700; position: relative; overflow: hidden;
+      transition: all .25s ease; border: none; cursor: pointer;
+    }
+    .process-btn::before {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, transparent 0%, rgba(255,255,255,.15) 50%, transparent 100%);
+      opacity: 0; transition: opacity .3s;
+    }
+    .process-btn:hover::before { opacity: 1; }
+    .process-btn:hover { transform: translateY(-1px); box-shadow: 0 12px 40px rgba(245,158,11,.35); }
+    .process-btn:active { transform: translateY(0); }
+    .process-btn:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    /* ── Progress bar ── */
+    .progress-track { background: rgba(255,255,255,.05); border-radius: 999px; overflow: hidden; height: 6px; }
+    .progress-fill {
+      height: 100%; border-radius: 999px;
+      background: linear-gradient(90deg, #78350F, #D97706, #F59E0B, #FCD34D);
+      background-size: 200% 100%;
+      animation: shimmer 2s linear infinite;
+      transition: width .6s cubic-bezier(.4,0,.2,1);
+    }
+    @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+
+    /* ── Steps ── */
+    .step-dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: var(--surf-3); border: 1px solid rgba(255,255,255,.1);
+      flex-shrink: 0; transition: all .4s ease;
+    }
+    .step.active .step-dot {
+      background: var(--amber);
+      box-shadow: 0 0 0 4px rgba(245,158,11,.2), 0 0 12px rgba(245,158,11,.6);
+      animation: pulse-dot 1.4s ease-in-out infinite;
+    }
+    .step.done .step-dot { background: #22C55E; border-color: #22C55E; box-shadow: 0 0 8px rgba(34,197,94,.4); }
+    .step.done .step-label { color: rgba(255,255,255,.55); }
+    .step.active .step-label { color: var(--amber-l); }
+    @keyframes pulse-dot {
+      0%, 100% { box-shadow: 0 0 0 4px rgba(245,158,11,.2), 0 0 12px rgba(245,158,11,.6); }
+      50%       { box-shadow: 0 0 0 8px rgba(245,158,11,.08), 0 0 20px rgba(245,158,11,.4); }
+    }
+
+    /* ── Log console ── */
+    .log-console {
+      background: #07070B; border: 1px solid rgba(255,255,255,.05);
+      border-radius: 12px; padding: 14px 16px; max-height: 180px;
+      overflow-y: auto; font-size: 11.5px; font-family: 'DM Mono', 'Fira Code', monospace;
+      line-height: 1.8;
+    }
+    .log-console::-webkit-scrollbar { width: 4px; }
+    .log-console::-webkit-scrollbar-thumb { background: #2a2a35; border-radius: 2px; }
+    .log-entry { display: flex; gap: 8px; align-items: flex-start; }
+    .log-entry .icon { flex-shrink: 0; margin-top: 2px; }
+    .log-entry.info   { color: rgba(252,211,77,.75); }
+    .log-entry.success{ color: rgba(74,222,128,.85); }
+    .log-entry.error  { color: rgba(248,113,113,.85); }
+    .log-entry.default{ color: rgba(255,255,255,.3); }
+
+    /* ── Script preview ── */
+    .script-box {
+      background: #07070B; border: 1px solid rgba(245,158,11,.15);
+      border-radius: 12px; padding: 16px; max-height: 180px; overflow-y: auto;
+      line-height: 2.2; font-size: 15px;
+    }
+
+    /* ── Download section ── */
+    .dl-btn {
+      background: #16A34A; color: white; font-weight: 600;
+      border: none; cursor: pointer; transition: all .2s ease;
+    }
+    .dl-btn:hover { background: #22C55E; transform: translateY(-1px); box-shadow: 0 8px 24px rgba(34,197,94,.3); }
+
+    .dl-btn-ghost {
+      background: transparent; color: var(--muted); font-weight: 400; font-size: 13px;
+      border: 1px solid rgba(255,255,255,.1); cursor: pointer; transition: all .2s ease;
+    }
+    .dl-btn-ghost:hover { border-color: rgba(255,255,255,.25); color: var(--text); background: rgba(255,255,255,.04); }
+
+    /* ── Input ── */
+    .api-input {
+      background: var(--surf-2); border: 1px solid rgba(255,255,255,.08);
+      color: var(--text); border-radius: 10px; padding: 10px 14px; font-size: 13.5px; width: 100%;
+      transition: border-color .2s ease; outline: none;
+    }
+    .api-input:focus { border-color: rgba(245,158,11,.4); }
+    .api-input::placeholder { color: rgba(255,255,255,.2); }
+
+    select.api-input { cursor: pointer; }
+
+    /* ── Connect btn ── */
+    .connect-btn {
+      background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.2);
+      color: #FCD34D; font-size: 13px; font-weight: 500;
+      border-radius: 10px; padding: 10px 18px; cursor: pointer; transition: all .2s; white-space: nowrap;
+    }
+    .connect-btn:hover { background: rgba(245,158,11,.2); border-color: rgba(245,158,11,.4); }
+
+    /* ── Fade in ── */
+    .reveal {
+      opacity: 0; transform: translateY(16px);
+      animation: reveal .55s ease forwards;
+    }
+    @keyframes reveal { to { opacity: 1; transform: translateY(0); } }
+    .d1 { animation-delay: .08s; }
+    .d2 { animation-delay: .18s; }
+    .d3 { animation-delay: .28s; }
+    .d4 { animation-delay: .38s; }
+    .d5 { animation-delay: .48s; }
+
+    /* ── Filmstrip header accent ── */
+    .filmstrip {
+      display: flex; gap: 3px; align-items: center;
+    }
+    .filmstrip-hole {
+      width: 7px; height: 7px; border-radius: 1px;
+      background: rgba(255,255,255,.12); flex-shrink: 0;
+    }
+    .filmstrip-frame {
+      width: 28px; height: 20px; border-radius: 2px;
+      background: rgba(245,158,11,.12); border: 1px solid rgba(245,158,11,.2);
+      flex-shrink: 0;
+    }
+
+    /* ── API status badge ── */
+    .api-badge {
+      display: flex; align-items: center; gap: 7px;
+      padding: 5px 12px; border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.03); font-size: 12px; color: var(--muted);
+    }
+    .api-dot { width: 7px; height: 7px; border-radius: 50%; background: #4B4B5A; transition: all .4s; }
+    .api-dot.ok   { background: #22C55E; box-shadow: 0 0 8px rgba(34,197,94,.6); }
+    .api-dot.fail { background: #EF4444; box-shadow: 0 0 8px rgba(239,68,68,.5); }
+
+    /* ── Hidden ── */
+    .hidden { display: none !important; }
+
+    /* ── Scrollbar global ── */
+    ::-webkit-scrollbar       { width: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #2a2a38; border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<div class="scan"></div>
+
+<!-- ════════════════════════════════════
+     HEADER
+════════════════════════════════════ -->
+<header style="border-bottom:1px solid var(--border); padding: 18px 32px;">
+  <div style="max-width:960px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;">
+
+    <!-- Logo -->
+    <div style="display:flex; align-items:center; gap:16px;">
+      <div style="display:flex; flex-direction:column; gap:5px; background:var(--surf-2); padding:8px 6px; border-radius:8px; border:1px solid var(--border);">
+        <div class="filmstrip">
+          <div class="filmstrip-hole"></div>
+          <div class="filmstrip-frame"></div>
+          <div class="filmstrip-frame"></div>
+          <div class="filmstrip-frame"></div>
+          <div class="filmstrip-hole"></div>
+        </div>
+        <div class="filmstrip">
+          <div class="filmstrip-hole"></div>
+          <div class="filmstrip-frame"></div>
+          <div class="filmstrip-frame"></div>
+          <div class="filmstrip-frame"></div>
+          <div class="filmstrip-hole"></div>
+        </div>
+      </div>
+      <div>
+        <h1 class="display amber-text" style="font-size:22px; line-height:1;">Myanmar Voiceover Studio</h1>
+        <p style="font-size:11px; color:var(--muted); letter-spacing:.12em; text-transform:uppercase; margin-top:3px;">AI-Powered Video Localization · Gemini 1.5 Flash</p>
+      </div>
+    </div>
+
+    <!-- API status -->
+    <div class="api-badge">
+      <div class="api-dot" id="apiDot"></div>
+      <span id="apiLabel">Not Connected</span>
+    </div>
+  </div>
+</header>
+
+<!-- ════════════════════════════════════
+     MAIN
+════════════════════════════════════ -->
+<main style="max-width:960px; margin:0 auto; padding:40px 24px 80px; display:flex; flex-direction:column; gap:28px;">
+
+  <!-- ① API CONFIG -->
+  <section class="card reveal d1" style="padding:28px;">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
+      <div style="width:32px; height:32px; border-radius:10px; background:rgba(245,158,11,.1); display:flex; align-items:center; justify-content:center;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+        </svg>
+      </div>
+      <h2 style="font-size:15px; font-weight:600; color:rgba(255,255,255,.8);">API Configuration</h2>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+      <!-- Gemini key -->
+      <div>
+        <label style="font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; display:block; margin-bottom:8px;">Gemini API Key</label>
+        <div style="display:flex; gap:8px;">
+          <input type="password" id="geminiKey" class="api-input" placeholder="AIzaSy…" autocomplete="off" />
+          <button class="connect-btn" onclick="validateApiKey()">Connect</button>
+        </div>
+        <p style="font-size:11.5px; color:var(--muted); margin-top:7px; opacity:.7;">Google AI Studio key — used for Gemini vision + TTS</p>
+      </div>
+      <!-- TTS engine selector -->
+      <div>
+        <label style="font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; display:block; margin-bottom:8px;">TTS Engine</label>
+        <select id="ttsEngine" class="api-input">
+          <option value="gcloud">Google Cloud TTS · my-MM (official Myanmar)</option>
+          <option value="gemini">Gemini 2.0 Flash Audio (fallback)</option>
+        </select>
+        <p style="font-size:11.5px; color:var(--muted); margin-top:7px; opacity:.7;">Cloud TTS auto-falls back to Gemini if key lacks TTS scope</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ② UPLOAD ZONE -->
+  <section class="reveal d2">
+    <div class="upload-zone" id="uploadZone" style="border-radius:20px; padding:64px 32px; text-align:center;"
+         onclick="document.getElementById('fileInput').click()"
+         ondragover="handleDragOver(event)"
+         ondragleave="handleDragLeave(event)"
+         ondrop="handleDrop(event)">
+      <div class="corner-br"></div>
+      <div class="corner-bl"></div>
+      <input type="file" id="fileInput" accept="video/mp4,video/quicktime" class="hidden" onchange="handleFileSelect(event)" />
+
+      <!-- Empty state -->
+      <div id="uploadEmpty">
+        <div style="width:72px; height:72px; border-radius:50%; background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.18); display:flex; align-items:center; justify-content:center; margin:0 auto 20px;">
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="rgba(245,158,11,.7)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="20" rx="2.5"/><path d="M10 9l5 3-5 3V9z"/>
+          </svg>
+        </div>
+        <h3 class="display" style="font-size:28px; color:rgba(255,255,255,.55); margin-bottom:8px;">Drop your video here</h3>
+        <p style="color:var(--muted); font-size:13.5px;">MP4 or MOV &nbsp;·&nbsp; Recommended ≤ 500 MB</p>
+      </div>
+
+      <!-- File selected state -->
+      <div id="uploadFilled" class="hidden" style="display:flex; align-items:center; justify-content:center; gap:16px;">
+        <div style="width:48px; height:48px; border-radius:12px; background:rgba(245,158,11,.15); border:1px solid rgba(245,158,11,.3); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="1.8" stroke-linecap="round">
+            <rect x="2" y="2" width="20" height="20" rx="2.5"/><path d="M10 9l5 3-5 3V9z"/>
+          </svg>
+        </div>
+        <div style="text-align:left;">
+          <p id="fileName" style="font-weight:500; color:rgba(255,255,255,.85); font-size:14px;"></p>
+          <p id="fileSize" style="color:var(--muted); font-size:12.5px; margin-top:2px;"></p>
+        </div>
+        <button onclick="clearFile(event)" style="margin-left:8px; padding:7px; border-radius:8px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.08); color:var(--muted); cursor:pointer; transition:all .2s;" onmouseover="this.style.background='rgba(255,255,255,.1)'" onmouseout="this.style.background='rgba(255,255,255,.05)'">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ③ SETTINGS -->
+  <section style="display:grid; grid-template-columns:1fr 1fr; gap:20px;" class="reveal d3">
+
+    <!-- Tone -->
+    <div class="card" style="padding:26px;">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:18px;">
+        <div style="width:32px; height:32px; border-radius:10px; background:rgba(245,158,11,.1); display:flex; align-items:center; justify-content:center;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+        </div>
+        <h2 style="font-size:15px; font-weight:600; color:rgba(255,255,255,.8);">Voice Tone</h2>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+        <div class="selectable active" data-tone="friendly" onclick="selectTone('friendly')" style="padding:14px;">
+          <div style="font-size:22px; margin-bottom:6px;">😊</div>
+          <div style="font-weight:600; font-size:13px; color:rgba(255,255,255,.8);">Friendly</div>
+          <div style="font-size:11.5px; color:var(--muted); margin-top:3px;">Warm &amp; welcoming</div>
+        </div>
+        <div class="selectable" data-tone="professional" onclick="selectTone('professional')" style="padding:14px;">
+          <div style="font-size:22px; margin-bottom:6px;">💼</div>
+          <div style="font-weight:600; font-size:13px; color:rgba(255,255,255,.8);">Professional</div>
+          <div style="font-size:11.5px; color:var(--muted); margin-top:3px;">Clear &amp; authoritative</div>
+        </div>
+        <div class="selectable" data-tone="excited" onclick="selectTone('excited')" style="padding:14px;">
+          <div style="font-size:22px; margin-bottom:6px;">🚀</div>
+          <div style="font-weight:600; font-size:13px; color:rgba(255,255,255,.8);">Excited</div>
+          <div style="font-size:11.5px; color:var(--muted); margin-top:3px;">Energetic &amp; upbeat</div>
+        </div>
+        <div class="selectable" data-tone="storyteller" onclick="selectTone('storyteller')" style="padding:14px;">
+          <div style="font-size:22px; margin-bottom:6px;">📖</div>
+          <div style="font-weight:600; font-size:13px; color:rgba(255,255,255,.8);">Storyteller</div>
+          <div style="font-size:11.5px; color:var(--muted); margin-top:3px;">Narrative &amp; vivid</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Aspect ratio -->
+    <div class="card" style="padding:26px;">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:18px;">
+        <div style="width:32px; height:32px; border-radius:10px; background:rgba(245,158,11,.1); display:flex; align-items:center; justify-content:center;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+        </div>
+        <h2 style="font-size:15px; font-weight:600; color:rgba(255,255,255,.8);">Output Format</h2>
+      </div>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px;">
+        <!-- 9:16 -->
+        <div class="selectable" data-ratio="9:16" onclick="selectRatio('9:16')" style="padding:16px 12px; text-align:center;">
+          <div style="display:flex; justify-content:center; align-items:center; height:44px; margin-bottom:10px;">
+            <div style="width:20px; height:36px; border:2px solid rgba(255,255,255,.25); border-radius:4px;"></div>
+          </div>
+          <div style="font-weight:600; font-size:13px; color:rgba(255,255,255,.8);">9:16</div>
+          <div style="font-size:11px; color:var(--muted); margin-top:3px;">TikTok · Reels</div>
+        </div>
+        <!-- 16:9 -->
+        <div class="selectable active" data-ratio="16:9" onclick="selectRatio('16:9')" style="padding:16px 12px; text-align:center;">
+          <div style="display:flex; justify-content:center; align-items:center; height:44px; margin-bottom:10px;">
+            <div style="width:38px; height:22px; border:2px solid rgba(255,255,255,.25); border-radius:4px;"></div>
+          </div>
+          <div style="font-weight:600; font-size:13px; color:rgba(255,255,255,.8);">16:9</div>
+          <div style="font-size:11px; color:var(--muted); margin-top:3px;">YouTube · Web</div>
+        </div>
+        <!-- 1:1 -->
+        <div class="selectable" data-ratio="1:1" onclick="selectRatio('1:1')" style="padding:16px 12px; text-align:center;">
+          <div style="display:flex; justify-content:center; align-items:center; height:44px; margin-bottom:10px;">
+            <div style="width:28px; height:28px; border:2px solid rgba(255,255,255,.25); border-radius:4px;"></div>
+          </div>
+          <div style="font-weight:600; font-size:13px; color:rgba(255,255,255,.8);">1:1</div>
+          <div style="font-size:11px; color:var(--muted); margin-top:3px;">Instagram</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ④ CTA BUTTON -->
+  <section class="reveal d4">
+    <button id="processBtn" class="process-btn display" onclick="startProcessing()"
+      style="width:100%; padding:20px; border-radius:18px; font-size:20px; letter-spacing:.12em;">
+      ▶ &nbsp;Generate Myanmar Voiceover
+    </button>
+  </section>
+
+  <!-- ⑤ PROGRESS (hidden until processing) -->
+  <section id="progressSection" class="card hidden" style="padding:28px;">
+    <!-- Progress bar -->
+    <div style="margin-bottom:22px;">
+      <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:10px;">
+        <span id="progressLabel" style="font-size:13.5px; color:rgba(255,255,255,.6); font-weight:500;">Processing…</span>
+        <span id="progressPct" style="font-size:13px; color:var(--amber-l); font-family:monospace; font-weight:600;">0%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressBar" style="width:0%;"></div>
+      </div>
+    </div>
+
+    <!-- Pipeline steps -->
+    <div style="display:flex; align-items:center; gap:8px; margin-bottom:22px; flex-wrap:wrap;">
+      <div class="step" id="s1" style="display:flex; align-items:center; gap:7px;">
+        <div class="step-dot"></div>
+        <span class="step-label" style="font-size:12px; color:var(--muted);">Video Upload</span>
+      </div>
+      <div style="flex:1; height:1px; background:rgba(255,255,255,.07); min-width:16px;"></div>
+      <div class="step" id="s2" style="display:flex; align-items:center; gap:7px;">
+        <div class="step-dot"></div>
+        <span class="step-label" style="font-size:12px; color:var(--muted);">Myanmar Script</span>
+      </div>
+      <div style="flex:1; height:1px; background:rgba(255,255,255,.07); min-width:16px;"></div>
+      <div class="step" id="s3" style="display:flex; align-items:center; gap:7px;">
+        <div class="step-dot"></div>
+        <span class="step-label" style="font-size:12px; color:var(--muted);">Voice Gen</span>
+      </div>
+      <div style="flex:1; height:1px; background:rgba(255,255,255,.07); min-width:16px;"></div>
+      <div class="step" id="s4" style="display:flex; align-items:center; gap:7px;">
+        <div class="step-dot"></div>
+        <span class="step-label" style="font-size:12px; color:var(--muted);">FFmpeg Render</span>
+      </div>
+    </div>
+
+    <!-- Console log -->
+    <div class="log-console" id="logConsole">
+      <div class="log-entry default"><span class="icon">›</span><span>Ready…</span></div>
+    </div>
+  </section>
+
+  <!-- ⑥ SCRIPT PREVIEW (hidden until generated) -->
+  <section id="scriptSection" class="card hidden" style="padding:28px;">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+      <div style="width:32px; height:32px; border-radius:10px; background:rgba(245,158,11,.1); display:flex; align-items:center; justify-content:center;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+      </div>
+      <h2 style="font-size:15px; font-weight:600; color:var(--amber-l);">Generated Myanmar Script</h2>
+    </div>
+    <div class="script-box myanmar" id="scriptText"></div>
+  </section>
+
+  <!-- ⑦ DOWNLOAD (hidden until done) -->
+  <section id="downloadSection" class="card hidden" style="padding:36px; text-align:center; border-color:rgba(34,197,94,.18);">
+    <div style="width:64px; height:64px; border-radius:50%; background:rgba(34,197,94,.08); border:1px solid rgba(34,197,94,.25); display:flex; align-items:center; justify-content:center; margin:0 auto 16px;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#22C55E" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <h3 class="display" style="font-size:26px; color:#4ADE80; margin-bottom:6px;">Processing Complete</h3>
+    <p style="color:var(--muted); font-size:13.5px; margin-bottom:28px;">Your Myanmar voiceover video is ready to download</p>
+    <div style="display:flex; gap:12px; justify-content:center; flex-wrap:wrap;">
+      <button class="dl-btn" onclick="downloadVideo()" style="padding:14px 32px; border-radius:14px; font-size:15px;">⬇ &nbsp;Download Video</button>
+      <button class="dl-btn-ghost" onclick="downloadSRT()" style="padding:14px 22px; border-radius:14px;">Download .SRT Subtitles</button>
+    </div>
+  </section>
+
+</main>
+
+<footer style="border-top:1px solid var(--border); padding:20px 32px; text-align:center;">
+  <p style="font-size:12px; color:rgba(255,255,255,.18);">
+    Myanmar Voiceover Studio &nbsp;·&nbsp; Gemini 1.5 Flash + FFmpeg WASM &nbsp;·&nbsp;
+    <span class="myanmar" style="font-size:13px; color:rgba(255,255,255,.25);">မြန်မာဘာသာ 🇲🇲</span>
+  </p>
+</footer>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>
