@@ -1,0 +1,6 @@
+{
+  "name": "Myanmar Text-to-Speech Converter",
+  "description": "Converts Myanmar (Burmese) text into natural speech voiceover using the Google Gemini 3.1 Flash TTS API with customizable audio styles.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
